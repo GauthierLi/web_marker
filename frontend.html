@@ -1,0 +1,2673 @@
+<!DOCTYPE html>
+<html lang="zh-cn">
+<head>
+    <meta charset="UTF-8">
+    <title>图片展示系统 - 优化版</title>
+    <script src="https://cdn.jsdelivr.net/npm/plotly.js@2.24.1/dist/plotly.min.js"></script>
+    <style>
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            margin: 40px; 
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            min-height: 100vh;
+        }
+        .container { 
+            background: white; 
+            padding: 30px; 
+            border-radius: 15px; 
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            backdrop-filter: blur(10px);
+        }
+        h2 {
+            color: #2c3e50;
+            margin-bottom: 10px;
+            font-weight: 600;
+        }
+        input, button { 
+            font-size: 1rem; 
+            padding: 12px 16px; 
+            border-radius: 8px;
+            border: 2px solid #ddd;
+            transition: all 0.3s ease;
+        }
+        input {
+            width: 450px;
+            margin-right: 10px;
+        }
+        input:focus {
+            outline: none;
+            border-color: #007acc;
+            box-shadow: 0 0 0 3px rgba(0,122,204,0.1);
+        }
+        button {
+            background: linear-gradient(135deg, #007acc 0%, #0056b3 100%);
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-weight: 500;
+        }
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,122,204,0.3);
+        }
+        .quick-btn {
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+            padding: 8px 12px;
+            font-size: 0.9rem;
+        }
+        .import-btn {
+            background: linear-gradient(135deg, #6f42c1 0%, #8e44ad 100%);
+            padding: 8px 12px;
+            font-size: 0.9rem;
+            color: white;
+            border: none;
+            cursor: pointer;
+            border-radius: 8px;
+            transition: all 0.3s ease;
+        }
+        .import-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(111,66,193,0.3);
+        }
+        .img-list { 
+            display: flex; 
+            flex-wrap: wrap; 
+            gap: 20px; 
+            margin-top: 30px; 
+        }
+        #error { 
+            white-space: pre-line; 
+            padding: 10px;
+            border-radius: 8px;
+            margin-top: 15px;
+        }
+        .error { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .success { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .info { background-color: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
+        .img-container {
+            text-align: center;
+            margin: 0;
+            padding: 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 12px;
+            background: linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%);
+            max-width: 280px;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+        }
+        .img-container:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+        }
+        .img-container img {
+            max-width: 220px;
+            max-height: 220px;
+            border: 2px solid #ddd;
+            border-radius: 10px;
+            display: block;
+            margin: 0 auto;
+            transition: all 0.3s ease;
+            cursor: context-menu;
+        }
+        .img-container img:hover {
+            border-color: #007acc;
+        }
+        
+        /* 图片选择状态样式 */
+        .img-container.selected {
+            border-color: #007acc;
+            background: linear-gradient(145deg, #e3f2fd 0%, #bbdefb 100%);
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(0,122,204,0.3);
+        }
+        .img-container.selected img {
+            border-color: #007acc;
+            border-width: 3px;
+        }
+        .img-container img {
+            cursor: pointer;
+        }
+        .selection-indicator {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            background: #007acc;
+            color: white;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            font-weight: bold;
+            opacity: 0;
+            transition: all 0.3s ease;
+        }
+        .img-container.selected .selection-indicator {
+            opacity: 1;
+        }
+        /* 图片放大模态框样式 */
+        .image-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 10000;
+            cursor: pointer;
+            backdrop-filter: blur(5px);
+        }
+        .image-modal.show {
+            display: flex;
+            animation: modalFadeIn 0.3s ease-out;
+        }
+        .image-modal img {
+            max-width: 90%;
+            max-height: 90%;
+            border-radius: 10px;
+            box-shadow: 0 10px 50px rgba(0,0,0,0.5);
+            transition: all 0.3s ease;
+            cursor: default;
+        }
+        .image-modal-close {
+            position: absolute;
+            top: 20px;
+            right: 30px;
+            color: white;
+            font-size: 40px;
+            font-weight: bold;
+            cursor: pointer;
+            z-index: 10001;
+            width: 50px;
+            height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            background: rgba(0,0,0,0.5);
+            transition: all 0.3s ease;
+        }
+        .image-modal-close:hover {
+            background: rgba(255,255,255,0.2);
+            transform: scale(1.1);
+        }
+        .image-modal-nav {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            color: white;
+            font-size: 30px;
+            font-weight: bold;
+            cursor: pointer;
+            z-index: 10001;
+            width: 60px;
+            height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            background: rgba(0,0,0,0.5);
+            transition: all 0.3s ease;
+            user-select: none;
+        }
+        .image-modal-nav:hover {
+            background: rgba(255,255,255,0.2);
+            transform: translateY(-50%) scale(1.1);
+        }
+        .image-modal-nav.prev {
+            left: 30px;
+        }
+        .image-modal-nav.next {
+            right: 30px;
+        }
+        .image-modal-nav.disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+        }
+        .image-modal-info {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0,0,0,0.8);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 20px;
+            font-size: 14px;
+            backdrop-filter: blur(10px);
+            text-align: center;
+            max-width: 80%;
+            word-break: break-all;
+        }
+        .image-modal-selection-indicator {
+            position: absolute;
+            top: 30px;
+            left: 30px;
+            background: rgba(0, 122, 204, 0.9);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 600;
+            backdrop-filter: blur(10px);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            user-select: none;
+            z-index: 10002;
+        }
+        .image-modal-selection-indicator:hover {
+            background: rgba(0, 122, 204, 1);
+            transform: scale(1.05);
+        }
+        .image-modal-selection-indicator.selected {
+            background: rgba(40, 167, 69, 0.9);
+        }
+        .image-modal-selection-indicator.selected:hover {
+            background: rgba(40, 167, 69, 1);
+        }
+        .image-modal img.selected {
+            border: 4px solid #28a745;
+            box-shadow: 0 10px 50px rgba(40, 167, 69, 0.4);
+        }
+        @keyframes modalFadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        .path-text {
+            font-size: 11px;
+            color: #495057;
+            margin-top: 12px;
+            word-break: break-all;
+            cursor: pointer;
+            padding: 8px 12px;
+            border-radius: 8px;
+            background: linear-gradient(145deg, #f8f9fa 0%, #e9ecef 100%);
+            border: 2px solid #dee2e6;
+            transition: all 0.3s ease;
+            user-select: all;
+            position: relative;
+            font-family: 'Courier New', monospace;
+            line-height: 1.4;
+        }
+        .path-text:hover {
+            background: linear-gradient(145deg, #e3f2fd 0%, #bbdefb 100%);
+            border-color: #007acc;
+            color: #0056b3;
+            transform: scale(1.02);
+        }
+        .path-text.copied {
+            background: linear-gradient(145deg, #d4edda 0%, #c3e6cb 100%);
+            border-color: #28a745;
+            color: #155724;
+            animation: pulse 0.6s ease-in-out;
+        }
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+        .tooltip {
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: linear-gradient(145deg, rgba(51, 51, 51, 0.95) 0%, rgba(68, 68, 68, 0.95) 100%);
+            color: white;
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 12px;
+            white-space: nowrap;
+            opacity: 0;
+            pointer-events: none;
+            transition: all 0.3s ease;
+            z-index: 1000;
+            margin-bottom: 10px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+            backdrop-filter: blur(10px);
+            font-family: 'Segoe UI', sans-serif;
+            font-weight: 500;
+        }
+        .tooltip::after {
+            content: '';
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            border: 6px solid transparent;
+            border-top-color: rgba(51, 51, 51, 0.95);
+        }
+        .path-text:hover .tooltip {
+            opacity: 1;
+            transform: translateX(-50%) translateY(-5px);
+        }
+        .path-text.copied .tooltip {
+            background: linear-gradient(145deg, rgba(40, 167, 69, 0.95) 0%, rgba(34, 139, 58, 0.95) 100%);
+            animation: tooltipPulse 0.6s ease-in-out;
+        }
+        .path-text.copied .tooltip::after {
+            border-top-color: rgba(40, 167, 69, 0.95);
+        }
+        @keyframes tooltipPulse {
+            0% { transform: translateX(-50%) translateY(-5px) scale(1); }
+            50% { transform: translateX(-50%) translateY(-5px) scale(1.1); }
+            100% { transform: translateX(-50%) translateY(-5px) scale(1); }
+        }
+        .error-path .tooltip {
+            background: linear-gradient(145deg, rgba(220, 53, 69, 0.95) 0%, rgba(200, 35, 51, 0.95) 100%);
+        }
+        .error-path .tooltip::after {
+            border-top-color: rgba(220, 53, 69, 0.95);
+        }
+        .error-path {
+            color: #dc3545 !important;
+            background: linear-gradient(145deg, #f8d7da 0%, #f5c6cb 100%) !important;
+            border-color: #dc3545 !important;
+        }
+        .error-path:hover {
+            background: linear-gradient(145deg, #f1aeb5 0%, #ea868f 100%) !important;
+        }
+        .stats {
+            display: flex;
+            gap: 20px;
+            margin-top: 20px;
+            flex-wrap: wrap;
+        }
+        .stat-card {
+            background: linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%);
+            padding: 15px 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            text-align: center;
+            min-width: 120px;
+        }
+        .stat-number {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: #007acc;
+        }
+        .stat-label {
+            font-size: 0.9rem;
+            color: #6c757d;
+            margin-top: 5px;
+        }
+        
+        /* 选择和导出面板样式 */
+        .selection-panel {
+            background: linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%);
+            border: 2px solid #007acc;
+            border-radius: 12px;
+            padding: 15px 20px;
+            margin-top: 20px;
+            display: none;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: 0 4px 15px rgba(0,122,204,0.2);
+            animation: slideDown 0.3s ease-out;
+        }
+        .selection-panel.show {
+            display: flex;
+        }
+        .selection-info {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        .selection-count {
+            background: #007acc;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 14px;
+        }
+        .selection-actions {
+            display: flex;
+            gap: 10px;
+        }
+        .export-btn, .clear-btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 14px;
+        }
+        .export-btn {
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+            color: white;
+        }
+        .export-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(40,167,69,0.3);
+        }
+        .clear-btn {
+            background: linear-gradient(135deg, #6c757d 0%, #495057 100%);
+            color: white;
+        }
+        .clear-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(108,117,125,0.3);
+        }
+        .select-all-btn {
+            background: linear-gradient(135deg, #007acc 0%, #0056b3 100%);
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 14px;
+        }
+        .select-all-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,122,204,0.3);
+        }
+        @keyframes slideDown {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        /* 固定顶部简约面板样式 */
+        .floating-selection-panel {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-bottom: 2px solid #007acc;
+            padding: 10px 20px;
+            display: none;
+            align-items: center;
+            justify-content: space-between;
+            z-index: 9999;
+            box-shadow: 0 2px 20px rgba(0,0,0,0.1);
+            transition: all 0.3s ease;
+            animation: slideDownFromTop 0.3s ease-out;
+        }
+        .floating-selection-panel.show {
+            display: flex;
+        }
+        .floating-selection-info {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        .floating-selection-count {
+            background: #007acc;
+            color: white;
+            padding: 6px 12px;
+            border-radius: 15px;
+            font-weight: 600;
+            font-size: 13px;
+        }
+        .floating-selection-actions {
+            display: flex;
+            gap: 8px;
+        }
+        .floating-export-btn, .floating-clear-btn, .floating-visualize-btn {
+            padding: 6px 16px;
+            border: none;
+            border-radius: 6px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 12px;
+        }
+        .floating-export-btn {
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+            color: white;
+        }
+        .floating-export-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 3px 10px rgba(40,167,69,0.3);
+        }
+        .floating-clear-btn {
+            background: linear-gradient(135deg, #6c757d 0%, #495057 100%);
+            color: white;
+        }
+        .floating-clear-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 3px 10px rgba(108,117,125,0.3);
+        }
+        .floating-visualize-btn {
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+            color: white;
+        }
+        .floating-visualize-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 3px 10px rgba(40,167,69,0.3);
+        }
+        .floating-select-all-btn {
+            background: linear-gradient(135deg, #007acc 0%, #0056b3 100%);
+            color: white;
+            padding: 6px 16px;
+            border: none;
+            border-radius: 6px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 12px;
+        }
+        .floating-select-all-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 3px 10px rgba(0,122,204,0.3);
+        }
+        @keyframes slideDownFromTop {
+            from { opacity: 0; transform: translateY(-100%); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        /* 当浮动面板显示时，为body添加顶部边距 */
+        body.floating-panel-active {
+            padding-top: 60px;
+        }
+        
+        /* Ctrl模式下的鼠标样式和图片效果 */
+        .img-container.ctrl-hover {
+            transform: translateY(-8px) scale(1.02);
+            box-shadow: 0 12px 30px rgba(0,122,204,0.4);
+            border-color: #007acc;
+        }
+        .img-container.ctrl-hover img {
+            border-color: #007acc;
+            filter: brightness(1.1);
+        }
+        
+        /* 特征可视化样式 */
+        .visualize-btn {
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+        }
+        
+        .visualize-btn:hover {
+            background: linear-gradient(135deg, #20c997 0%, #17a2b8 100%);
+        }
+        
+        .visualization-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.8);
+            z-index: 10000;
+            backdrop-filter: blur(5px);
+        }
+        
+        .visualization-content {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            max-width: 90%;
+            max-height: 90%;
+            overflow: auto;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        
+        .visualization-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        
+        .visualization-title {
+            font-size: 24px;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+        
+        .close-btn {
+            background: #dc3545;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            font-size: 20px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .close-btn:hover {
+            background: #c82333;
+            transform: scale(1.1);
+        }
+        
+        .method-selector {
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        
+        .method-selector label {
+            margin-right: 20px;
+            font-weight: 500;
+        }
+        
+        .method-selector input[type="radio"] {
+            margin-right: 8px;
+        }
+        
+        .visualization-container {
+            width: 100%;
+            height: 600px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            background: #f8f9fa;
+        }
+        
+        .loading-indicator {
+            text-align: center;
+            padding: 50px;
+            font-size: 18px;
+            color: #6c757d;
+        }
+        
+        /* 进度条样式 */
+        .progress-container {
+            padding: 30px 50px;
+            text-align: center;
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 20px;
+            background: #e9ecef;
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 20px 0;
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #007acc 0%, #28a745 100%);
+            width: 0%;
+            border-radius: 10px;
+            transition: width 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .progress-fill::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(45deg, 
+                transparent 25%, 
+                rgba(255,255,255,0.2) 25%, 
+                rgba(255,255,255,0.2) 50%, 
+                transparent 50%, 
+                transparent 75%, 
+                rgba(255,255,255,0.2) 75%);
+            background-size: 20px 20px;
+            animation: progress-stripes 1s linear infinite;
+        }
+        
+        @keyframes progress-stripes {
+            0% { background-position: 0 0; }
+            100% { background-position: 20px 0; }
+        }
+        
+        .progress-text {
+            font-size: 16px;
+            font-weight: 500;
+            color: #495057;
+            margin-bottom: 10px;
+        }
+        
+        .progress-percentage {
+            font-size: 24px;
+            font-weight: 600;
+            color: #007acc;
+            margin-top: 10px;
+        }
+        
+        .loading-spinner {
+            display: inline-block;
+            width: 30px;
+            height: 30px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #007acc;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: 10px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        /* 图片缩略图悬浮窗样式 */
+        .thumbnail-popup {
+            position: fixed;
+            background: white;
+            border: 2px solid #007acc;
+            border-radius: 8px;
+            padding: 10px;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.3);
+            z-index: 10001;
+            max-width: 300px;
+            max-height: 300px;
+            display: none;
+            backdrop-filter: blur(10px);
+        }
+        
+        .thumbnail-popup img {
+            max-width: 100%;
+            max-height: 250px;
+            object-fit: contain;
+            border-radius: 4px;
+        }
+        
+        .thumbnail-info {
+            margin-top: 8px;
+            font-size: 12px;
+            color: #6c757d;
+            text-align: center;
+            word-break: break-all;
+        }
+        
+        .thumbnail-close {
+            position: absolute;
+            top: -5px;
+            right: -5px;
+            background: #dc3545;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            font-size: 12px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .thumbnail-close:hover {
+            background: #c82333;
+        }
+    </style>
+</head>
+<body>
+    <!-- 固定顶部简约选择面板 -->
+    <div class="floating-selection-panel" id="floatingSelectionPanel">
+        <div class="floating-selection-info">
+            <div class="floating-selection-count" id="floatingSelectionCount">已选择 0 张图片</div>
+        </div>
+        <div class="floating-selection-actions">
+            <button class="floating-select-all-btn" id="floatingSelectAllBtn" onclick="toggleSelectAll()">🔲 全选</button>
+            <button class="floating-export-btn" onclick="exportSelectedPaths()">📥 导出</button>
+            <button class="floating-clear-btn" onclick="clearSelection()">🗑️ 清空</button>
+            <button class="floating-visualize-btn" onclick="showVisualizationModal()">📊 特征可视化</button>
+        </div>
+    </div>
+
+    <div class="container">
+        <h2>🖼️ 图片展示系统 - 优化版</h2>
+        <p>✨ 支持：txt文件路径（每行一个图片路径/URL）或 图片文件夹路径</p>
+        <p><small>💡 <strong>功能说明</strong>：左键点击图片选择/取消选择，按F键全选/反选当前可见图片，按住Ctrl键鼠标滑过图片快速选择，右键图片直接放大查看，放大时按J/K或←/→键切换图片，按F键选择/反选当前图片，点击路径复制到剪贴板</small></p>
+        <p><small>📁 <strong>导入功能</strong>：点击"📁 导入已选择"按钮可以导入之前导出的txt文件，系统会自动勾选文件中包含的图片路径</small></p>
+        
+        <div style="display: flex; align-items: center; flex-wrap: wrap; gap: 10px;">
+            <input type="text" id="txtPath" placeholder="输入txt文件路径或图片文件夹路径">
+            <button onclick="fetchImages()">🚀 加载图片</button>
+            <button class="import-btn" onclick="triggerImport()">📁 导入已选择</button>
+            <input type="file" id="importFile" accept=".txt" style="display: none;" onchange="handleImportFile(event)">
+        </div>
+        
+        <div id="error"></div>
+        
+        <div class="stats" id="stats" style="display: none;">
+            <div class="stat-card">
+                <div class="stat-number" id="totalCount">0</div>
+                <div class="stat-label">总数</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="successCount">0</div>
+                <div class="stat-label">成功</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="errorCount">0</div>
+                <div class="stat-label">失败</div>
+            </div>
+        </div>
+        
+        <!-- 选择面板 -->
+        <div class="selection-panel" id="selectionPanel">
+            <div class="selection-info">
+                <div class="selection-count" id="selectionCount">已选择 0 张图片</div>
+                <span style="color: #6c757d; font-size: 14px;">💡 点击图片选择/取消选择，按F键快速全选可见图片，按住Ctrl键鼠标滑过快速选择，放大模式下F键选择当前图片</span>
+            </div>
+            <div class="selection-actions">
+                <button class="select-all-btn" id="selectAllBtn" onclick="toggleSelectAll()">🔲 全选</button>
+                <button class="export-btn" onclick="exportSelectedPaths()">📥 导出路径</button>
+                <button class="clear-btn" onclick="clearSelection()">🗑️ 清空选择</button>
+                <button class="visualize-btn" onclick="showVisualizationModal()">📊 特征可视化</button>
+            </div>
+        </div>
+        
+        <div class="img-list" id="imgList"></div>
+    </div>
+    
+    <!-- 图片放大模态框 -->
+    <div class="image-modal" id="imageModal">
+        <div class="image-modal-close" onclick="closeImageModal()">&times;</div>
+        <div class="image-modal-selection-indicator" id="modalSelectionIndicator" onclick="toggleCurrentImageSelection()">
+            <span id="modalSelectionIcon">🔲</span>
+            <span id="modalSelectionText">选择</span>
+        </div>
+        <div class="image-modal-nav prev" id="prevBtn" onclick="previousImage()">‹</div>
+        <div class="image-modal-nav next" id="nextBtn" onclick="nextImage()">›</div>
+        <img id="modalImage" src="" alt="放大图片">
+        <div class="image-modal-info" id="modalInfo"></div>
+    </div>
+    
+    <script>
+        // 立即测试JavaScript是否工作
+        console.log('JavaScript正在加载...');
+        
+        // 检查页面加载状态
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('页面加载完成');
+        });
+        
+        async function fetchImages() {
+            const txtPath = document.getElementById('txtPath').value;
+            const errorDiv = document.getElementById('error');
+            const imgList = document.getElementById('imgList');
+            const stats = document.getElementById('stats');
+            
+            errorDiv.innerText = '';
+            errorDiv.className = '';
+            imgList.innerHTML = '';
+            stats.style.display = 'none';
+            
+            if (!txtPath) {
+                errorDiv.innerText = '❌ 请输入txt文件路径或图片文件夹路径';
+                errorDiv.className = 'error';
+                return;
+            }
+            
+            console.log('正在请求:', txtPath);
+            errorDiv.innerText = '⏳ 正在加载...';
+            errorDiv.className = 'info';
+            
+            try {
+                const resp = await fetch(`http://localhost:8001/get_images?txt_path=${encodeURIComponent(txtPath)}`);
+                const data = await resp.json();
+                
+                console.log('API响应:', data);
+                
+                if (resp.status !== 200) {
+                    errorDiv.innerText = `❌ ${data.error || '请求失败'}`;
+                    errorDiv.className = 'error';
+                    return;
+                }
+                
+                if (!data.images || data.images.length === 0) {
+                    errorDiv.innerText = '⚠️ 没有找到图片路径';
+                    errorDiv.className = 'error';
+                    return;
+                }
+                
+                const sourceType = data.type === 'directory' ? '文件夹' : 'txt文件';
+                errorDiv.innerText = `📁 从${sourceType}找到 ${data.count} 个路径，正在加载图片...`;
+                errorDiv.className = 'info';
+                
+                let loadedCount = 0;
+                let errorCount = 0;
+                
+                // 显示统计信息
+                stats.style.display = 'flex';
+                updateStats(data.images.length, 0, 0);
+                
+                // 清空并重新构建图片列表
+                currentImageList = [];
+                selectedImages.clear();
+                imageElements.clear();
+                allSelectableImages.clear();
+                clearVisualizationCache(); // 清空特征可视化缓存
+                updateSelectionPanel();
+                
+                data.images.forEach((path, index) => {
+                    const imgContainer = document.createElement('div');
+                    imgContainer.className = 'img-container';
+                    imgContainer.style.position = 'relative';
+                    
+                    const img = document.createElement('img');
+                    img.src = path;
+                    img.alt = `图片 ${index + 1}`;
+                    
+                    // 创建选择指示器
+                    const selectionIndicator = document.createElement('div');
+                    selectionIndicator.className = 'selection-indicator';
+                    selectionIndicator.textContent = '✓';
+                    
+                    // 添加图片点击选择功能
+                    img.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        toggleImageSelection(originalPath, imgContainer);
+                    });
+                    
+                    // 添加Ctrl+鼠标悬停自动选择功能
+                    img.addEventListener('mouseenter', (e) => {
+                        // 检查是否在模态窗口中
+                        const imageModal = document.getElementById('imageModal');
+                        const visualizationModal = document.getElementById('visualizationModal');
+                        const isImageModalOpen = imageModal.classList.contains('show');
+                        const isVisualizationModalOpen = visualizationModal && visualizationModal.style.display === 'block';
+                        const isAnyModalOpen = isImageModalOpen || isVisualizationModalOpen;
+                        
+                        // 只在选择界面（非模态窗口）时允许Ctrl自动选择
+                        if (isAnyModalOpen) {
+                            return; // 在模态窗口中时不执行自动选择
+                        }
+                        
+                        // 实时检查Ctrl键状态，防止状态不同步
+                        const ctrlActuallyPressed = e.ctrlKey || isCtrlPressed;
+                        
+                        if (ctrlActuallyPressed) {
+                            // 同步状态
+                            if (!isCtrlPressed) {
+                                isCtrlPressed = true;
+                                document.body.style.cursor = 'crosshair';
+                            }
+                            
+                            imgContainer.classList.add('ctrl-hover');
+                            if (!selectedImages.has(originalPath)) {
+                                selectedImages.add(originalPath);
+                                imgContainer.classList.add('selected');
+                                updateSelectionPanel();
+                                isCtrlDragging = true;
+                                
+                                // 显示选择反馈效果
+                                const feedback = document.createElement('div');
+                                feedback.style.cssText = `
+                                    position: absolute;
+                                    top: 50%;
+                                    left: 50%;
+                                    transform: translate(-50%, -50%);
+                                    background: rgba(40, 167, 69, 0.9);
+                                    color: white;
+                                    padding: 4px 8px;
+                                    border-radius: 12px;
+                                    font-size: 12px;
+                                    font-weight: 600;
+                                    z-index: 1000;
+                                    pointer-events: none;
+                                    opacity: 0;
+                                    transition: opacity 0.2s ease;
+                                `;
+                                feedback.textContent = '✓';
+                                imgContainer.appendChild(feedback);
+                                
+                                requestAnimationFrame(() => {
+                                    feedback.style.opacity = '1';
+                                });
+                                
+                                setTimeout(() => {
+                                    feedback.style.opacity = '0';
+                                    setTimeout(() => {
+                                        if (feedback.parentNode) {
+                                            imgContainer.removeChild(feedback);
+                                        }
+                                    }, 200);
+                                }, 300);
+                            }
+                        } else {
+                            // 如果Ctrl没有按下但状态显示按下，重置状态
+                            if (isCtrlPressed) {
+                                isCtrlPressed = false;
+                                isCtrlDragging = false;
+                                document.body.style.cursor = 'default';
+                            }
+                        }
+                    });
+                    
+                    img.addEventListener('mouseleave', () => {
+                        imgContainer.classList.remove('ctrl-hover');
+                    });
+                    
+                    // 阻止在Ctrl模式下的右键菜单
+                    img.addEventListener('contextmenu', (e) => {
+                        // 实时检查Ctrl键状态
+                        const ctrlActuallyPressed = e.ctrlKey || isCtrlPressed;
+                        
+                        if (ctrlActuallyPressed) {
+                            e.preventDefault();
+                            return;
+                        }
+                        e.preventDefault();
+                        enlargeImageDirect(img.src, originalPath);
+                    });
+                    
+                    // 从URL中提取原始路径
+                    let originalPath = path;
+                    if (path.includes('/file?path=')) {
+                        originalPath = decodeURIComponent(path.split('/file?path=')[1]);
+                    } else if (path.includes('/static/')) {
+                        originalPath = '/tmp/' + path.split('/static/')[1];
+                    }
+                    
+                    const pathText = document.createElement('div');
+                    pathText.className = 'path-text';
+                    pathText.textContent = originalPath;
+                    
+                    // 创建浮动提示
+                    const tooltip = document.createElement('div');
+                    tooltip.className = 'tooltip';
+                    tooltip.textContent = '💡 点击复制路径';
+                    pathText.appendChild(tooltip);
+                    
+                    // 点击复制功能
+                    pathText.addEventListener('click', async () => {
+                        try {
+                            await navigator.clipboard.writeText(originalPath);
+                            pathText.classList.add('copied');
+                            tooltip.textContent = '✅ 已复制到剪贴板';
+                            setTimeout(() => {
+                                pathText.classList.remove('copied');
+                                tooltip.textContent = '💡 点击复制路径';
+                            }, 3000);
+                        } catch (err) {
+                            // 备用复制方法
+                            const textArea = document.createElement('textarea');
+                            textArea.value = originalPath;
+                            document.body.appendChild(textArea);
+                            textArea.select();
+                            document.execCommand('copy');
+                            document.body.removeChild(textArea);
+                            
+                            pathText.classList.add('copied');
+                            tooltip.textContent = '✅ 已复制到剪贴板';
+                            setTimeout(() => {
+                                pathText.classList.remove('copied');
+                                tooltip.textContent = '💡 点击复制路径';
+                            }, 3000);
+                        }
+                    });
+                    
+                    img.onload = () => {
+                        loadedCount++;
+                        // 添加到导航列表
+                        currentImageList.push({
+                            src: img.src,
+                            originalPath: originalPath
+                        });
+                        // 存储图片元素映射
+                        imageElements.set(originalPath, imgContainer);
+                        // 添加到可选择列表
+                        allSelectableImages.add(originalPath);
+                        updateStats(data.images.length, loadedCount, errorCount);
+                        updateStatus();
+                        updateSelectAllButton();
+                    };
+                    
+                    img.onerror = () => {
+                        errorCount++;
+                        img.style.display = 'none';
+                        pathText.classList.add('error-path');
+                        pathText.textContent = '❌ ' + originalPath;
+                        tooltip.textContent = '⚠️ 图片加载失败，点击仍可复制路径';
+                        updateStats(data.images.length, loadedCount, errorCount);
+                        updateStatus();
+                    };
+                    
+                    // 阻止默认行为
+                    img.addEventListener('selectstart', (e) => e.preventDefault());
+                    img.addEventListener('dragstart', (e) => e.preventDefault());
+                    
+                    imgContainer.appendChild(img);
+                    imgContainer.appendChild(selectionIndicator);
+                    imgContainer.appendChild(pathText);
+                    imgList.appendChild(imgContainer);
+                });
+                
+                function updateStats(total, success, failed) {
+                    document.getElementById('totalCount').textContent = total;
+                    document.getElementById('successCount').textContent = success;
+                    document.getElementById('errorCount').textContent = failed;
+                }
+                
+                function updateStatus() {
+                    const total = data.images.length;
+                    const processed = loadedCount + errorCount;
+                    if (processed === total) {
+                        if (loadedCount > 0) {
+                            errorDiv.innerText = `✅ 加载完成！成功: ${loadedCount} 个，失败: ${errorCount} 个，共 ${total} 个`;
+                            errorDiv.className = 'success';
+                        } else {
+                            errorDiv.innerText = `❌ 所有图片都加载失败\n💡 请确保路径正确且文件存在`;
+                            errorDiv.className = 'error';
+                        }
+                    } else {
+                        errorDiv.innerText = `⏳ 正在加载: ${processed}/${total} (✅${loadedCount} ❌${errorCount})`;
+                        errorDiv.className = 'info';
+                    }
+                }
+                
+            } catch (e) {
+                errorDiv.innerText = `❌ 请求异常: ${e.message}`;
+                errorDiv.className = 'error';
+                console.error('请求错误:', e);
+            }
+        }
+        
+        // 全局变量存储图片列表和当前索引
+        let currentImageList = [];
+        let currentImageIndex = -1;
+        
+        // 选择状态管理
+        let selectedImages = new Set();
+        let imageElements = new Map(); // 存储图片元素和路径的映射
+        
+        // 特征可视化缓存
+        let visualizationCache = {
+            imagePaths: null,
+            method: null,
+            data: null,
+            isValid: false
+        };
+        
+        // 清空缓存的函数
+        function clearVisualizationCache() {
+            visualizationCache = {
+                imagePaths: null,
+                method: null,
+                data: null,
+                isValid: false
+            };
+            console.log('🗑️ 特征可视化缓存已清空');
+        }
+        
+        // 滚动监听变量
+        let isFloatingPanelVisible = false;
+        
+        // 存储所有可选择的图片路径
+        let allSelectableImages = new Set();
+        
+        // Ctrl键状态跟踪
+        let isCtrlPressed = false;
+        let isCtrlDragging = false;
+        
+        // 直接放大图片（右键点击时调用）
+        function enlargeImageDirect(imgSrc, originalPath) {
+            // 找到当前图片在列表中的索引
+            currentImageIndex = currentImageList.findIndex(item => item.src === imgSrc);
+            
+            const imageModal = document.getElementById('imageModal');
+            const modalImage = document.getElementById('modalImage');
+            const modalInfo = document.getElementById('modalInfo');
+            
+            modalImage.src = imgSrc;
+            modalInfo.innerHTML = `
+                <div style="display: flex; justify-content: space-between; align-items: center; gap: 20px;">
+                    <span style="flex: 1; text-align: left;">${originalPath}</span>
+                    <span style="flex-shrink: 0; background: rgba(255,255,255,0.2); padding: 4px 8px; border-radius: 12px; font-size: 12px;">
+                        ${currentImageIndex + 1}/${currentImageList.length}
+                    </span>
+                </div>
+                <div style="margin-top: 8px; font-size: 12px; opacity: 0.8;">
+                    按 K ← 上一张 | 按 J → 下一张 | 按 空格/M 选择/取消 | 按 ESC 关闭
+                </div>
+            `;
+            
+            imageModal.classList.add('show');
+            updateNavigationButtons();
+            updateModalSelectionIndicator(originalPath);
+        }
+        
+        // 显示指定索引的图片
+        function showImageAtIndex(index) {
+            if (index < 0 || index >= currentImageList.length) return;
+            
+            currentImageIndex = index;
+            const imageData = currentImageList[index];
+            
+            const modalImage = document.getElementById('modalImage');
+            const modalInfo = document.getElementById('modalInfo');
+            
+            modalImage.src = imageData.src;
+            modalInfo.innerHTML = `
+                <div style="display: flex; justify-content: space-between; align-items: center; gap: 20px;">
+                    <span style="flex: 1; text-align: left;">${imageData.originalPath}</span>
+                    <span style="flex-shrink: 0; background: rgba(255,255,255,0.2); padding: 4px 8px; border-radius: 12px; font-size: 12px;">
+                        ${currentImageIndex + 1}/${currentImageList.length}
+                    </span>
+                </div>
+                <div style="margin-top: 8px; font-size: 12px; opacity: 0.8;">
+                    按 K ← 上一张 | 按 J → 下一张 | 按 空格/M 选择/取消 | 按 ESC 关闭
+                </div>
+            `;
+            
+            // 更新导航按钮状态
+            updateNavigationButtons();
+            // 更新选择状态指示器
+            updateModalSelectionIndicator(imageData.originalPath);
+        }
+        
+        // 更新导航按钮的显示状态
+        function updateNavigationButtons() {
+            const prevBtn = document.getElementById('prevBtn');
+            const nextBtn = document.getElementById('nextBtn');
+            
+            // 如果只有一张图片，隐藏导航按钮
+            if (currentImageList.length <= 1) {
+                prevBtn.style.display = 'none';
+                nextBtn.style.display = 'none';
+            } else {
+                prevBtn.style.display = 'flex';
+                nextBtn.style.display = 'flex';
+            }
+        }
+        
+        // 上一张图片
+        function previousImage() {
+            if (currentImageIndex > 0) {
+                showImageAtIndex(currentImageIndex - 1);
+            } else {
+                // 循环到最后一张
+                showImageAtIndex(currentImageList.length - 1);
+            }
+        }
+        
+        // 下一张图片  
+        function nextImage() {
+            if (currentImageIndex < currentImageList.length - 1) {
+                showImageAtIndex(currentImageIndex + 1);
+            } else {
+                // 循环到第一张
+                showImageAtIndex(0);
+            }
+        }
+        
+        // 关闭图片放大模态框
+        function closeImageModal() {
+            const imageModal = document.getElementById('imageModal');
+            imageModal.classList.remove('show');
+        }
+        
+        // 点击模态框背景关闭
+        document.getElementById('imageModal').addEventListener('click', (e) => {
+            if (e.target.id === 'imageModal') {
+                closeImageModal();
+            }
+        });
+        
+        // ESC键关闭模态框，j/k键导航，f键全选/反选可见图片
+        document.addEventListener('keydown', (e) => {
+            const imageModal = document.getElementById('imageModal');
+            const visualizationModal = document.getElementById('visualizationModal');
+            const isImageModalOpen = imageModal.classList.contains('show');
+            const isVisualizationModalOpen = visualizationModal && visualizationModal.style.display === 'block';
+            const isAnyModalOpen = isImageModalOpen || isVisualizationModalOpen;
+            
+            // 检查是否有输入框处于焦点状态
+            const activeElement = document.activeElement;
+            const isInputFocused = activeElement && (activeElement.tagName === 'INPUT' || activeElement.tagName === 'TEXTAREA');
+            
+            // 跟踪Ctrl键状态 - 只在选择界面（非模态窗口）时启用Ctrl滑动选择
+            if (e.key === 'Control' && !isAnyModalOpen && !isInputFocused) {
+                isCtrlPressed = true;
+                document.body.style.cursor = 'crosshair';
+                showKeyboardFeedback('🖱️ Ctrl模式：鼠标滑过图片将自动选择');
+            }
+            
+            // 额外检查：通过ctrlKey属性确认Ctrl状态 - 同样只在选择界面启用
+            if (e.ctrlKey && !isAnyModalOpen && !isInputFocused && !isCtrlPressed) {
+                isCtrlPressed = true;
+                document.body.style.cursor = 'crosshair';
+            }
+            
+            if (e.key === 'Escape') {
+                if (isInputFocused) {
+                    // 如果输入框有焦点，先失焦
+                    activeElement.blur();
+                } else if (isVisualizationModalOpen) {
+                    // 关闭特征可视化模态窗口
+                    closeVisualizationModal();
+                } else {
+                    // 关闭图片模态窗口
+                    closeImageModal();
+                }
+            } else if (isImageModalOpen) {
+                // 只在图片模态框打开时响应导航键和选择键
+                if (e.key === 'j' || e.key === 'J' || e.key === 'ArrowRight') {
+                    e.preventDefault();
+                    nextImage();
+                } else if (e.key === 'k' || e.key === 'K' || e.key === 'ArrowLeft') {
+                    e.preventDefault();
+                    previousImage();
+                } else if (e.key === ' ' || e.key === 'Spacebar') {
+                    e.preventDefault();
+                    toggleCurrentImageSelection();
+                } else if (e.key === 'f' || e.key === 'F') {
+                    e.preventDefault();
+                    console.log('F key pressed in modal, toggling current image selection');
+                    toggleCurrentImageSelection();
+                }
+            } else if (!isInputFocused && !isVisualizationModalOpen) {
+                // 只有在非输入框焦点状态且非可视化模态窗口状态下才响应F键
+                if (e.key === 'f' || e.key === 'F') {
+                    e.preventDefault();
+                    console.log('F key pressed, calling toggleSelectAll()'); // 调试日志
+                    toggleSelectAll();
+                }
+            }
+        });
+        
+        // 监听Ctrl键释放
+        document.addEventListener('keyup', (e) => {
+            if (e.key === 'Control') {
+                isCtrlPressed = false;
+                isCtrlDragging = false;
+                document.body.style.cursor = 'default';
+            }
+        });
+        
+        // 监听窗口失焦，重置Ctrl状态
+        window.addEventListener('blur', () => {
+            isCtrlPressed = false;
+            isCtrlDragging = false;
+            document.body.style.cursor = 'default';
+        });
+        
+        // 监听窗口重新获得焦点，重置所有状态
+        window.addEventListener('focus', () => {
+            isCtrlPressed = false;
+            isCtrlDragging = false;
+            document.body.style.cursor = 'default';
+        });
+        
+        // 监听页面可见性变化，重置状态
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden) {
+                isCtrlPressed = false;
+                isCtrlDragging = false;
+                document.body.style.cursor = 'default';
+            }
+        });
+        
+        // 定期检查Ctrl键状态（作为备用机制）
+        setInterval(() => {
+            // 如果窗口没有焦点且Ctrl状态还是激活的，重置状态
+            if (!document.hasFocus() && isCtrlPressed) {
+                isCtrlPressed = false;
+                isCtrlDragging = false;
+                document.body.style.cursor = 'default';
+            }
+        }, 1000);
+        
+        // 全局鼠标移动监听器，用于实时同步Ctrl状态
+        document.addEventListener('mousemove', (e) => {
+            const imageModal = document.getElementById('imageModal');
+            const visualizationModal = document.getElementById('visualizationModal');
+            const isImageModalOpen = imageModal.classList.contains('show');
+            const isVisualizationModalOpen = visualizationModal && visualizationModal.style.display === 'block';
+            const isAnyModalOpen = isImageModalOpen || isVisualizationModalOpen;
+            
+            if (!isAnyModalOpen) {
+                // 实时检查Ctrl键状态 - 只在选择界面（非模态窗口）时启用
+                if (e.ctrlKey && !isCtrlPressed) {
+                    isCtrlPressed = true;
+                    document.body.style.cursor = 'crosshair';
+                } else if (!e.ctrlKey && isCtrlPressed) {
+                    isCtrlPressed = false;
+                    isCtrlDragging = false;
+                    document.body.style.cursor = 'default';
+                }
+            } else if (isCtrlPressed) {
+                // 在模态窗口中时，重置Ctrl状态
+                isCtrlPressed = false;
+                isCtrlDragging = false;
+                document.body.style.cursor = 'default';
+            }
+        });
+        
+        // 阻止模态框图片的右键菜单
+        document.getElementById('modalImage').addEventListener('contextmenu', (e) => {
+            e.preventDefault();
+        });
+        
+        // 图片选择功能
+        function toggleImageSelection(imagePath, containerElement) {
+            if (selectedImages.has(imagePath)) {
+                // 取消选择
+                selectedImages.delete(imagePath);
+                containerElement.classList.remove('selected');
+            } else {
+                // 选择图片
+                selectedImages.add(imagePath);
+                containerElement.classList.add('selected');
+            }
+            updateSelectionPanel();
+        }
+        
+        // 更新选择面板
+        function updateSelectionPanel() {
+            const selectionPanel = document.getElementById('selectionPanel');
+            const selectionCount = document.getElementById('selectionCount');
+            const floatingSelectionPanel = document.getElementById('floatingSelectionPanel');
+            const floatingSelectionCount = document.getElementById('floatingSelectionCount');
+            
+            const count = selectedImages.size;
+            const countText = `已选择 ${count} 张图片`;
+            
+            selectionCount.textContent = countText;
+            floatingSelectionCount.textContent = countText;
+            
+            if (count > 0) {
+                selectionPanel.classList.add('show');
+                // 只在有选择且页面滚动时显示浮动面板
+                updateFloatingPanel();
+            } else {
+                selectionPanel.classList.remove('show');
+                floatingSelectionPanel.classList.remove('show');
+                isFloatingPanelVisible = false;
+            }
+            
+            // 更新全选按钮状态
+            updateSelectAllButton();
+        }
+        
+        // 全选/反选功能
+        function toggleSelectAll() {
+            console.log('toggleSelectAll() called'); // 调试日志
+            const visibleImages = getVisibleImages();
+            console.log('Visible images:', visibleImages.length); // 调试日志
+            const isAllVisibleSelected = visibleImages.every(imagePath => selectedImages.has(imagePath)) && visibleImages.length > 0;
+            
+            if (isAllVisibleSelected) {
+                // 当前可见图片都已选择，执行反选
+                deselectVisible();
+                showKeyboardFeedback('已反选可见图片');
+            } else {
+                // 当前可见图片未全选，执行全选可见图片
+                selectVisible();
+                showKeyboardFeedback('已全选可见图片');
+            }
+        }
+        
+        // 显示键盘操作反馈
+        function showKeyboardFeedback(message) {
+            // 创建反馈元素
+            const feedback = document.createElement('div');
+            feedback.style.cssText = `
+                position: fixed;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                background: rgba(0, 122, 204, 0.9);
+                color: white;
+                padding: 12px 24px;
+                border-radius: 25px;
+                font-size: 14px;
+                font-weight: 500;
+                z-index: 10000;
+                pointer-events: none;
+                backdrop-filter: blur(10px);
+                box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+                opacity: 0;
+                transition: opacity 0.3s ease;
+            `;
+            feedback.textContent = message;
+            
+            document.body.appendChild(feedback);
+            
+            // 显示动画
+            requestAnimationFrame(() => {
+                feedback.style.opacity = '1';
+            });
+            
+            // 2秒后移除
+            setTimeout(() => {
+                feedback.style.opacity = '0';
+                setTimeout(() => {
+                    if (feedback.parentNode) {
+                        document.body.removeChild(feedback);
+                    }
+                }, 300);
+            }, 1500);
+        }
+        
+        // 获取当前视口中可见的图片
+        function getVisibleImages() {
+            const visibleImages = [];
+            const viewportTop = window.pageYOffset;
+            const viewportBottom = viewportTop + window.innerHeight;
+            
+            imageElements.forEach((containerElement, imagePath) => {
+                const rect = containerElement.getBoundingClientRect();
+                const elementTop = rect.top + window.pageYOffset;
+                const elementBottom = elementTop + rect.height;
+                
+                // 检查元素是否在视口中可见
+                if (elementBottom > viewportTop && elementTop < viewportBottom) {
+                    visibleImages.push(imagePath);
+                }
+            });
+            
+            return visibleImages;
+        }
+        
+        // 全选当前可见的图片
+        function selectVisible() {
+            const visibleImages = getVisibleImages();
+            visibleImages.forEach(imagePath => {
+                if (!selectedImages.has(imagePath)) {
+                    selectedImages.add(imagePath);
+                    const containerElement = imageElements.get(imagePath);
+                    if (containerElement) {
+                        containerElement.classList.add('selected');
+                    }
+                }
+            });
+            updateSelectionPanel();
+        }
+        
+        // 反选当前可见的图片
+        function deselectVisible() {
+            const visibleImages = getVisibleImages();
+            visibleImages.forEach(imagePath => {
+                if (selectedImages.has(imagePath)) {
+                    selectedImages.delete(imagePath);
+                    const containerElement = imageElements.get(imagePath);
+                    if (containerElement) {
+                        containerElement.classList.remove('selected');
+                    }
+                }
+            });
+            updateSelectionPanel();
+        }
+        
+        // 更新全选按钮的文字和状态
+        function updateSelectAllButton() {
+            const selectAllBtn = document.getElementById('selectAllBtn');
+            const floatingSelectAllBtn = document.getElementById('floatingSelectAllBtn');
+            
+            const visibleImages = getVisibleImages();
+            const isAllVisibleSelected = visibleImages.every(imagePath => selectedImages.has(imagePath)) && visibleImages.length > 0;
+            const hasAnyVisibleSelected = visibleImages.some(imagePath => selectedImages.has(imagePath));
+            
+            let buttonText;
+            if (visibleImages.length === 0) {
+                buttonText = '🔲 全选可见';
+            } else if (isAllVisibleSelected) {
+                buttonText = '☑️ 反选可见';
+            } else if (hasAnyVisibleSelected) {
+                buttonText = '☑️ 全选可见';
+            } else {
+                buttonText = '🔲 全选可见';
+            }
+            
+            if (selectAllBtn) selectAllBtn.textContent = buttonText;
+            if (floatingSelectAllBtn) floatingSelectAllBtn.textContent = buttonText;
+        }
+        
+        // 清空选择
+        function clearSelection() {
+            selectedImages.forEach(imagePath => {
+                const containerElement = imageElements.get(imagePath);
+                if (containerElement) {
+                    containerElement.classList.remove('selected');
+                }
+            });
+            selectedImages.clear();
+            updateSelectionPanel();
+        }
+        
+        // 导出选中的图片路径
+        function exportSelectedPaths() {
+            if (selectedImages.size === 0) {
+                alert('请先选择要导出的图片');
+                return;
+            }
+            
+            const pathsArray = Array.from(selectedImages);
+            const content = pathsArray.join('\n');
+            
+            // 创建下载链接
+            const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `selected_images_${new Date().toISOString().slice(0,19).replace(/:/g,'-')}.txt`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(url);
+            
+            // 显示成功提示
+            const exportBtn = document.querySelector('.export-btn');
+            const floatingExportBtn = document.querySelector('.floating-export-btn');
+            
+            if (exportBtn) {
+                const originalText = exportBtn.textContent;
+                exportBtn.textContent = '✅ 已导出';
+                setTimeout(() => {
+                    exportBtn.textContent = originalText;
+                }, 2000);
+            }
+            
+            if (floatingExportBtn) {
+                const floatingOriginalText = floatingExportBtn.textContent;
+                floatingExportBtn.textContent = '✅ 已导出';
+                setTimeout(() => {
+                    floatingExportBtn.textContent = floatingOriginalText;
+                }, 2000);
+            }
+        }
+        
+        // 页面滚动监听
+        window.addEventListener('scroll', () => {
+            updateFloatingPanel();
+            updateSelectAllButton(); // 滚动时更新按钮状态
+        });
+        
+        // 页面加载完成后绑定滚动事件
+        window.addEventListener('load', () => {
+            updateFloatingPanel();
+        });
+        
+        // 更新浮动面板显示状态
+        function updateFloatingPanel() {
+            const floatingSelectionPanel = document.getElementById('floatingSelectionPanel');
+            const shouldShow = selectedImages.size > 0 && window.pageYOffset > 200;
+            
+            if (shouldShow && !isFloatingPanelVisible) {
+                floatingSelectionPanel.classList.add('show');
+                isFloatingPanelVisible = true;
+            } else if (!shouldShow && isFloatingPanelVisible) {
+                floatingSelectionPanel.classList.remove('show');
+                isFloatingPanelVisible = false;
+            }
+        }
+        
+        // 更新模态框选择状态指示器
+        function updateModalSelectionIndicator(imagePath) {
+            const modalSelectionIndicator = document.getElementById('modalSelectionIndicator');
+            const modalSelectionIcon = document.getElementById('modalSelectionIcon');
+            const modalSelectionText = document.getElementById('modalSelectionText');
+            const modalImage = document.getElementById('modalImage');
+            
+            const isSelected = selectedImages.has(imagePath);
+            
+            if (isSelected) {
+                modalSelectionIndicator.classList.add('selected');
+                modalSelectionIcon.textContent = '✅';
+                modalSelectionText.textContent = '已选择';
+                modalImage.classList.add('selected');
+            } else {
+                modalSelectionIndicator.classList.remove('selected');
+                modalSelectionIcon.textContent = '🔲';
+                modalSelectionText.textContent = '选择';
+                modalImage.classList.remove('selected');
+            }
+        }
+        
+        // 切换当前放大图片的选择状态
+        function toggleCurrentImageSelection() {
+            if (currentImageIndex >= 0 && currentImageIndex < currentImageList.length) {
+                const currentImagePath = currentImageList[currentImageIndex].originalPath;
+                const containerElement = imageElements.get(currentImagePath);
+                
+                if (containerElement) {
+                    const wasSelected = selectedImages.has(currentImagePath);
+                    toggleImageSelection(currentImagePath, containerElement);
+                    updateModalSelectionIndicator(currentImagePath);
+                    
+                    // 显示操作反馈
+                    const isSelected = selectedImages.has(currentImagePath);
+                    if (isSelected) {
+                        showKeyboardFeedback('✅ 已选择当前图片');
+                    } else {
+                        showKeyboardFeedback('❌ 已取消选择当前图片');
+                    }
+                }
+            }
+        }
+
+        // 导入功能
+        function triggerImport() {
+            const importFile = document.getElementById('importFile');
+            importFile.click();
+        }
+
+        async function handleImportFile(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            try {
+                const text = await file.text();
+                const importedPaths = text.split('\n')
+                    .map(line => line.trim())
+                    .filter(line => line && !line.startsWith('#')); // 过滤空行和注释行
+
+                if (importedPaths.length === 0) {
+                    alert('导入文件为空或无有效路径');
+                    return;
+                }
+
+                // 显示导入信息
+                const errorDiv = document.getElementById('error');
+                errorDiv.className = 'info';
+                errorDiv.textContent = `准备导入 ${importedPaths.length} 个路径，正在匹配当前显示的图片...`;
+
+                // 等待一下让用户看到信息
+                setTimeout(() => {
+                    importAndSelectPaths(importedPaths);
+                }, 500);
+
+            } catch (error) {
+                const errorDiv = document.getElementById('error');
+                errorDiv.className = 'error';
+                errorDiv.textContent = `读取导入文件失败: ${error.message}`;
+            }
+
+            // 清空文件输入，以便可以重复选择同一个文件
+            event.target.value = '';
+        }
+
+        function importAndSelectPaths(importedPaths) {
+            const errorDiv = document.getElementById('error');
+            let matchedCount = 0;
+            let newSelections = 0;
+
+            // 将导入的路径转换为Set以便快速查找
+            const importedPathsSet = new Set(importedPaths);
+
+            // 遍历当前显示的所有图片，检查是否需要选中
+            for (const [imagePath, containerElement] of imageElements) {
+                // 检查当前图片路径是否在导入列表中
+                let shouldSelect = false;
+                
+                // 直接匹配完整路径
+                if (importedPathsSet.has(imagePath)) {
+                    shouldSelect = true;
+                } else {
+                    // 检查是否匹配originalPath
+                    const imgInfo = currentImageList.find(img => img.path === imagePath);
+                    if (imgInfo && importedPathsSet.has(imgInfo.originalPath)) {
+                        shouldSelect = true;
+                    } else {
+                        // 尝试文件名匹配（兼容性处理）
+                        const fileName = imagePath.split('/').pop();
+                        const matchingImportPath = importedPaths.find(importPath => {
+                            const importFileName = importPath.split('/').pop();
+                            return importFileName === fileName;
+                        });
+                        if (matchingImportPath) {
+                            shouldSelect = true;
+                        }
+                    }
+                }
+
+                if (shouldSelect) {
+                    matchedCount++;
+                    // 如果还没有选中，则选中它
+                    if (!selectedImages.has(imagePath)) {
+                        toggleImageSelection(imagePath, containerElement);
+                        newSelections++;
+                    }
+                }
+            }
+
+            // 显示导入结果
+            if (matchedCount > 0) {
+                errorDiv.className = 'success';
+                errorDiv.textContent = `🎉 导入成功！匹配到 ${matchedCount} 张图片，新选择了 ${newSelections} 张图片`;
+                
+                // 3秒后隐藏成功消息
+                setTimeout(() => {
+                    if (errorDiv.className === 'success') {
+                        errorDiv.textContent = '';
+                        errorDiv.className = '';
+                    }
+                }, 3000);
+            } else {
+                errorDiv.className = 'error';
+                errorDiv.textContent = `😞 没有找到匹配的图片。请确保：\n1. 已经加载了包含这些图片的目录\n2. 导入文件中的路径与当前显示的图片路径匹配\n3. 或者确保文件名能够匹配`;
+            }
+        }
+        
+        // 特征可视化相关函数
+        function showVisualizationModal() {
+            console.log('showVisualizationModal被调用');
+            console.log('currentImageList.length:', currentImageList ? currentImageList.length : 'currentImageList未定义');
+            
+            if (typeof currentImageList === 'undefined' || currentImageList.length === 0) {
+                // 优化提示：使用更友好的提示方式而不是alert
+                const errorDiv = document.getElementById('error');
+                if (errorDiv) {
+                    errorDiv.className = 'error';
+                    errorDiv.textContent = '📊 请先加载图片后再使用特征可视化功能！';
+                }
+                return;
+            }
+            
+            const modal = document.getElementById('visualizationModal');
+            
+            if (modal) {
+                modal.style.display = 'block';
+                console.log('特征可视化窗口已打开');
+            } else {
+                console.error('找不到visualizationModal元素');
+                const errorDiv = document.getElementById('error');
+                if (errorDiv) {
+                    errorDiv.className = 'error';
+                    errorDiv.textContent = '❌ 可视化功能初始化失败，请刷新页面重试';
+                }
+            }
+        }
+        
+        function closeVisualizationModal() {
+            document.getElementById('visualizationModal').style.display = 'none';
+            hideThumbnail(); // 关闭模态窗口时也隐藏缩略图
+        }
+        
+        // 缩略图相关函数
+        function showThumbnail(imagePath, imageIndex, x, y) {
+            const popup = document.getElementById('thumbnailPopup');
+            const img = document.getElementById('thumbnailImage');
+            const info = document.getElementById('thumbnailInfo');
+            
+            if (!popup || !img || !info) {
+                console.error('缩略图元素未找到');
+                return;
+            }
+            
+            // 设置图片源和信息
+            img.src = imagePath;
+            img.onerror = function() {
+                // 如果图片加载失败，显示占位符
+                this.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjE1MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZGRkIi8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxNCIgZmlsbD0iIzk5OSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPuWbvueJh+WKoOi9veWksei0pTwvdGV4dD48L3N2Zz4=';
+            };
+            
+            info.textContent = `图片 ${imageIndex + 1}`;
+            
+            // 计算弹窗位置，确保不超出屏幕边界
+            const popupWidth = 300;
+            const popupHeight = 300;
+            let left = x + 10;
+            let top = y + 10;
+            
+            if (left + popupWidth > window.innerWidth) {
+                left = x - popupWidth - 10;
+            }
+            if (top + popupHeight > window.innerHeight) {
+                top = y - popupHeight - 10;
+            }
+            
+            // 确保不会超出屏幕左边或上边
+            left = Math.max(10, left);
+            top = Math.max(10, top);
+            
+            popup.style.left = left + 'px';
+            popup.style.top = top + 'px';
+            popup.style.display = 'block';
+        }
+        
+        function hideThumbnail() {
+            const popup = document.getElementById('thumbnailPopup');
+            if (popup) {
+                popup.style.display = 'none';
+            }
+        }
+        
+        // 跳转到选择界面的指定图片并闪烁提醒
+        function jumpToImageInGallery(imageIndex, imagePath) {
+            console.log(`🎯 跳转到图片 ${imageIndex + 1}: ${imagePath}`);
+            
+            // 关闭可视化模态窗口
+            closeVisualizationModal();
+            
+            // 增加等待时间，确保模态窗口完全关闭且页面元素可见
+            setTimeout(() => {
+                // 优先通过图片路径查找，因为索引可能不准确
+                console.log(`🔍 通过路径查找图片: ${imagePath}`);
+                
+                // 尝试多次查找，因为页面可能还在渲染
+                let attempts = 0;
+                const maxAttempts = 10;
+                
+                const tryFindImage = () => {
+                    attempts++;
+                    console.log(`🔍 第 ${attempts} 次尝试查找图片`);
+                    
+                    if (jumpToImageByPath(imagePath)) {
+                        console.log(`✅ 在第 ${attempts} 次尝试中找到图片`);
+                        return; // 成功找到
+                    }
+                    
+                    if (attempts < maxAttempts) {
+                        console.log(`⏳ 等待页面加载，${maxAttempts - attempts} 次机会剩余`);
+                        setTimeout(tryFindImage, 200); // 200ms后重试
+                    } else {
+                        console.warn(`❌ ${maxAttempts} 次尝试后仍未找到图片`);
+                        // 最后尝试使用索引查找
+                        const imageElements = document.querySelectorAll('.img-item');
+                        console.log(`🔍 最后尝试索引查找: ${imageIndex}，当前有 ${imageElements.length} 张图片`);
+                        
+                        if (imageIndex >= 0 && imageIndex < imageElements.length) {
+                            const targetImage = imageElements[imageIndex];
+                            targetImage.scrollIntoView({ 
+                                behavior: 'smooth', 
+                                block: 'center' 
+                            });
+                            setTimeout(() => {
+                                flashImageBorder(targetImage);
+                            }, 800);
+                        }
+                    }
+                };
+                
+                tryFindImage(); // 开始首次尝试
+            }, 500); // 增加等待时间到500ms
+        }
+        
+        // 通过图片路径查找并跳转
+        function jumpToImageByPath(imagePath) {
+            console.log(`🔍 查找图片路径: ${imagePath}`);
+            
+            // 尝试不同的选择器
+            const selectors = [
+                '.img-item img',           // 标准选择器
+                '.img-item .img-container img', // 如果有容器
+                '#imgList img',            // 直接在图片列表中查找
+                'img[src*="file?path="]'   // 通过src属性查找
+            ];
+            
+            let allImages = [];
+            for (const selector of selectors) {
+                const images = document.querySelectorAll(selector);
+                if (images.length > 0) {
+                    allImages = Array.from(images);
+                    console.log(`📋 使用选择器 "${selector}" 找到 ${images.length} 张图片`);
+                    break;
+                }
+            }
+            
+            if (allImages.length === 0) {
+                console.warn(`⚠️ 未找到任何图片元素`);
+                return false;
+            }
+            
+            for (let i = 0; i < allImages.length; i++) {
+                const img = allImages[i];
+                const currentSrc = img.src;
+                console.log(`   对比 ${i}: ${currentSrc}`);
+                
+                // 尝试多种匹配方式
+                if (currentSrc === imagePath || 
+                    currentSrc.includes(imagePath.split('/').pop()) || // 匹配文件名
+                    imagePath.includes(currentSrc.split('/').pop()) || // 反向匹配文件名
+                    extractFileNameFromPath(currentSrc) === extractFileNameFromPath(imagePath)) { // 提取纯文件名匹配
+                    
+                    console.log(`✅ 找到匹配的图片: ${i}`);
+                    const targetContainer = img.closest('.img-item') || img.closest('.img-container') || img.parentElement;
+                    if (targetContainer) {
+                        targetContainer.scrollIntoView({ 
+                            behavior: 'smooth', 
+                            block: 'center' 
+                        });
+                        setTimeout(() => {
+                            flashImageBorder(targetContainer);
+                        }, 800);
+                        return true; // 返回成功
+                    }
+                }
+            }
+            
+            console.warn(`⚠️ 未找到路径为 ${imagePath} 的图片`);
+            return false; // 返回失败
+        }
+        
+        // 从路径中提取纯文件名（去掉查询参数和编码）
+        function extractFileNameFromPath(path) {
+            try {
+                // 处理URL编码的路径
+                if (path.includes('/file?path=')) {
+                    const decodedPath = decodeURIComponent(path.split('/file?path=')[1]);
+                    return decodedPath.split('/').pop();
+                }
+                // 处理普通路径
+                return path.split('/').pop().split('?')[0]; // 去掉查询参数
+            } catch (e) {
+                console.warn('路径解析失败:', path, e);
+                return path;
+            }
+        }
+        
+        // 图片边框闪烁效果
+        function flashImageBorder(imageElement) {
+            if (!imageElement) return;
+            
+            const originalBorder = imageElement.style.border;
+            const originalBoxShadow = imageElement.style.boxShadow;
+            
+            let flashCount = 0;
+            const maxFlashes = 6; // 闪烁3次（开关各算一次）
+            
+            const flashInterval = setInterval(() => {
+                if (flashCount % 2 === 0) {
+                    // 显示绿色边框
+                    imageElement.style.border = '4px solid #28a745';
+                    imageElement.style.boxShadow = '0 0 20px rgba(40, 167, 69, 0.8)';
+                } else {
+                    // 恢复原边框
+                    imageElement.style.border = originalBorder;
+                    imageElement.style.boxShadow = originalBoxShadow;
+                }
+                
+                flashCount++;
+                if (flashCount >= maxFlashes) {
+                    clearInterval(flashInterval);
+                    // 确保最后恢复原样
+                    imageElement.style.border = originalBorder;
+                    imageElement.style.boxShadow = originalBoxShadow;
+                }
+            }, 300); // 每300ms切换一次
+        }
+        
+        // 点击页面其他地方隐藏缩略图
+        document.addEventListener('click', function(e) {
+            const popup = document.getElementById('thumbnailPopup');
+            if (popup && popup.style.display === 'block') {
+                // 如果点击的不是缩略图本身，则隐藏
+                if (!popup.contains(e.target)) {
+                    hideThumbnail();
+                }
+            }
+        });
+        
+        // 添加Plotly右键事件监听器
+        function addPlotlyContextMenu(containerId, visualizationData) {
+            const container = document.getElementById(containerId);
+            
+            if (!container) {
+                console.error('Container not found:', containerId);
+                return;
+            }
+            
+            let isRightMousePressed = false;
+            let rightClickData = null;
+            let currentCtrlPressed = false; // 跟踪当前Ctrl键状态
+            
+            // 监听Ctrl键状态变化
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Control') {
+                    currentCtrlPressed = true;
+                    console.log('Ctrl键按下');
+                }
+            });
+            
+            document.addEventListener('keyup', (e) => {
+                if (e.key === 'Control') {
+                    currentCtrlPressed = false;
+                    console.log('Ctrl键释放');
+                }
+            });
+            
+            // 监听鼠标按下
+            container.addEventListener('mousedown', function(e) {
+                if (e.button === 2) {
+                    isRightMousePressed = true;
+                }
+            });
+            
+            // 监听鼠标抬起
+            container.addEventListener('mouseup', function(e) {
+                if (e.button === 2) {
+                    setTimeout(() => {
+                        isRightMousePressed = false;
+                        // 如果有右键点击的数据，显示缩略图
+                        if (rightClickData) {
+                            showThumbnail(
+                                rightClickData.image_path,
+                                rightClickData.image_index,
+                                e.clientX || 300,
+                                e.clientY || 300
+                            );
+                            rightClickData = null;
+                        }
+                    }, 100);
+                }
+            });
+            
+            // 阻止右键菜单
+            container.addEventListener('contextmenu', function(e) {
+                e.preventDefault();
+                return false;
+            });
+            
+            // 监听Plotly点击事件
+            container.on('plotly_click', function(data) {
+                if (data.points && data.points.length > 0 && visualizationData) {
+                    const point = data.points[0];
+                    handlePointClick(point, data.event || {});
+                }
+            });
+            
+            // 处理点击事件
+            function handlePointClick(point, event) {
+                console.log('点击事件触发:', {
+                    event: event,
+                    ctrlKey: event?.ctrlKey,
+                    button: event?.button,
+                    type: event?.type,
+                    originalEvent: event?.originalEvent
+                });
+                
+                // 从Plotly点击事件中正确获取pointIndex
+                const pointIndex = point.pointIndex !== undefined ? point.pointIndex : point.pointNumber;
+                const curveNumber = point.curveNumber !== undefined ? point.curveNumber : point.data.curveNumber;
+                
+                let targetData = null;
+                
+                if (curveNumber === 0) {
+                    // 灰色点（未选择）
+                    const unselectedData = visualizationData.filter(d => !d.selected);
+                    if (pointIndex >= 0 && pointIndex < unselectedData.length) {
+                        targetData = unselectedData[pointIndex];
+                    }
+                } else if (curveNumber === 1) {
+                    // 绿色点（已选择）
+                    const selectedData = visualizationData.filter(d => d.selected);
+                    if (pointIndex >= 0 && pointIndex < selectedData.length) {
+                        targetData = selectedData[pointIndex];
+                    }
+                }
+                
+                if (targetData) {
+                    console.log('目标数据:', targetData);
+                    
+                    // 检查Ctrl键状态 - 使用多种方法检测
+                    const isCtrlPressed = event?.ctrlKey || 
+                                        event?.originalEvent?.ctrlKey || 
+                                        window.event?.ctrlKey ||
+                                        currentCtrlPressed || // 使用全局状态
+                                        false;
+                    
+                    // 检测左键 - Plotly可能不传递button信息，所以我们假设是左键除非明确是右键
+                    const isLeftClick = !isRightMousePressed; // 如果不是右键，就认为是左键
+                    
+                    console.log('按键检测:', {
+                        isCtrlPressed: isCtrlPressed,
+                        isLeftClick: isLeftClick,
+                        isRightMousePressed: isRightMousePressed,
+                        currentCtrlPressed: currentCtrlPressed
+                    });
+                    
+                    if (isCtrlPressed && isLeftClick) {
+                        console.log('🎯 执行Ctrl+左键跳转');
+                        // Ctrl+左键：跳转到选择界面的对应图片
+                        jumpToImageInGallery(targetData.image_index, targetData.image_path);
+                    } else if (isRightMousePressed) {
+                        console.log('👆 执行右键显示缩略图');
+                        // 右键点击：准备显示缩略图
+                        rightClickData = targetData;
+                    } else {
+                        console.log('👈 普通左键点击，无操作');
+                    }
+                    // 移除普通左键点击显示缩略图的功能
+                }
+            }
+        }
+        
+        // 新增：仅更新可视化颜色的函数
+        function updateVisualizationColors(cachedData, selectedIndices, method) {
+            const container = document.getElementById('visualizationContainer');
+            
+            // 更新数据中的选中状态
+            const updatedData = cachedData.map(point => ({
+                ...point,
+                selected: selectedIndices.includes(point.image_index)
+            }));
+            
+            // 生成traces
+            const traces = [
+                {
+                    x: updatedData.filter(d => !d.selected).map(d => d.x),
+                    y: updatedData.filter(d => !d.selected).map(d => d.y),
+                    z: updatedData.filter(d => !d.selected).map(d => d.z),
+                    mode: 'markers',
+                    type: 'scatter3d',
+                    name: '未选择图片',
+                    marker: {
+                        size: 5,
+                        color: '#95a5a6',
+                        opacity: 0.6
+                    },
+                    text: updatedData.filter(d => !d.selected).map(d => `图片${d.image_index + 1}`),
+                    hovertemplate: '%{text}<br>坐标: (%{x:.2f}, %{y:.2f}, %{z:.2f})<extra></extra>'
+                }
+            ];
+            
+            // 如果有选中的图片，添加第二个轨迹
+            const selectedData = updatedData.filter(d => d.selected);
+            if (selectedData.length > 0) {
+                traces.push({
+                    x: selectedData.map(d => d.x),
+                    y: selectedData.map(d => d.y),
+                    z: selectedData.map(d => d.z),
+                    mode: 'markers',
+                    type: 'scatter3d',
+                    name: '已选择图片',
+                    marker: {
+                        size: 5,
+                        color: '#28a745',
+                        opacity: 0.6,
+                        line: {
+                            color: '#155724',
+                            width: 1
+                        }
+                    },
+                    text: selectedData.map(d => `图片${d.image_index + 1} (已选择)`),
+                    hovertemplate: '%{text}<br>坐标: (%{x:.2f}, %{y:.2f}, %{z:.2f})<extra></extra>'
+                });
+            }
+            
+            const layout = {
+                title: {
+                    text: `图片特征 ${method.toUpperCase()} 3D可视化 (已缓存)`,
+                    font: { size: 18 }
+                },
+                scene: {
+                    xaxis: { title: `${method.toUpperCase()} 1` },
+                    yaxis: { title: `${method.toUpperCase()} 2` },
+                    zaxis: { title: `${method.toUpperCase()} 3` }
+                },
+                margin: { l: 0, r: 0, b: 0, t: 40 },
+                legend: {
+                    x: 0,
+                    y: 1
+                }
+            };
+            
+            const config = {
+                responsive: true,
+                displayModeBar: true,
+                modeBarButtonsToRemove: ['autoScale2d', 'resetScale2d', 'toggleSpikelines', 'hoverClosestCartesian', 'hoverCompareCartesian']
+            };
+            
+            // 清空容器并绘制图表
+            container.innerHTML = '';
+            Plotly.newPlot(container, traces, layout, config);
+            
+            // 添加右键点击事件监听器
+            addPlotlyContextMenu('visualizationContainer', updatedData);
+            
+            // 添加统计信息
+            const statsDiv = document.createElement('div');
+            statsDiv.style.cssText = 'margin-top: 15px; text-align: center; color: #6c757d; font-size: 14px;';
+            statsDiv.innerHTML = `
+                📊 统计信息 (缓存): 总计 ${updatedData.length} 张图片，
+                已选择 ${selectedData.length} 张图片 (绿色点)，未选择 ${updatedData.length - selectedData.length} 张图片 (灰色点)
+                <br><span style="color: #28a745;">⚡ 使用缓存数据，无需重新计算特征</span>
+            `;
+            container.appendChild(statsDiv);
+        }
+        
+        // 进度管理相关函数
+        let progressEventSource = null;
+        
+        function showProgressBar() {
+            const container = document.getElementById('visualizationContainer');
+            container.innerHTML = `
+                <div class="progress-container">
+                    <div class="progress-text">正在处理图片特征...</div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="progressFill"></div>
+                    </div>
+                    <div class="progress-percentage" id="progressPercentage">0%</div>
+                    <div id="progressMessage" style="margin-top: 15px; color: #6c757d;">准备开始...</div>
+                </div>
+            `;
+        }
+        
+        function updateProgress(progress, status, message) {
+            const progressFill = document.getElementById('progressFill');
+            const progressPercentage = document.getElementById('progressPercentage');
+            const progressMessage = document.getElementById('progressMessage');
+            
+            if (progressFill) {
+                progressFill.style.width = progress + '%';
+            }
+            if (progressPercentage) {
+                progressPercentage.textContent = progress + '%';
+            }
+            if (progressMessage) {
+                progressMessage.textContent = message;
+            }
+        }
+        
+        function startProgressMonitoring() {
+            if (progressEventSource) {
+                progressEventSource.close();
+            }
+            
+            console.log('🔄 开始进度监控');
+            
+            // 使用普通的轮询而不是SSE，更简单可靠
+            const checkProgress = async () => {
+                try {
+                    const response = await fetch('http://localhost:8001/progress');
+                    const data = await response.json();
+                    
+                    console.log('进度更新:', data);
+                    updateProgress(data.progress, data.status, data.message);
+                    
+                    if (data.status === 'completed' || data.status === 'error') {
+                        console.log('进度监控结束:', data.status);
+                        return; // 停止轮询
+                    }
+                    
+                    // 继续轮询
+                    setTimeout(checkProgress, 200);
+                } catch (error) {
+                    console.log('轮询进度失败:', error);
+                    // 出错时也继续轮询几次
+                    setTimeout(checkProgress, 500);
+                }
+            };
+            
+            // 立即开始第一次检查
+            checkProgress();
+        }
+        
+        async function generateVisualization() {
+            const container = document.getElementById('visualizationContainer');
+            const selectedMethod = document.querySelector('input[name="method"]:checked').value;
+            
+            try {
+                // 从currentImageList中提取图片路径
+                const imagePaths = currentImageList.map(item => item.src);
+                
+                // 将selectedImages中的路径转换为索引
+                const selectedIndices = [];
+                console.log('selectedImages内容:', Array.from(selectedImages));
+                console.log('前3个图片路径:', imagePaths.slice(0, 3));
+                
+                // selectedImages存储的是originalPath，需要找到对应的索引
+                currentImageList.forEach((item, index) => {
+                    if (selectedImages.has(item.originalPath)) {
+                        selectedIndices.push(index);
+                        console.log(`匹配到选中图片 ${index}: ${item.originalPath.substring(0, 50)}...`);
+                    }
+                });
+                
+                console.log('图片路径数量:', imagePaths.length);
+                console.log('选中的索引:', selectedIndices);
+                console.log('选中图片数量:', selectedIndices.length);
+                
+                if (selectedIndices.length === 0) {
+                    console.warn('⚠️ 没有找到任何选中的图片索引！');
+                }
+                
+                // 检查缓存是否有效
+                const pathsMatch = visualizationCache.imagePaths && 
+                    JSON.stringify(visualizationCache.imagePaths) === JSON.stringify(imagePaths);
+                const methodMatch = visualizationCache.method === selectedMethod;
+                const cacheValid = visualizationCache.isValid && pathsMatch && methodMatch;
+                
+                if (cacheValid) {
+                    console.log('⚡ 使用缓存数据，仅更新颜色');
+                    container.innerHTML = `
+                        <div class="loading-indicator">
+                            <div class="loading-spinner"></div>
+                            正在更新选择状态 (使用缓存)...
+                        </div>
+                    `;
+                    
+                    // 使用缓存数据更新可视化
+                    updateVisualizationColors(visualizationCache.data, selectedIndices, selectedMethod);
+                    return;
+                }
+                
+                console.log('🔄 缓存无效，重新计算特征...');
+                
+                // 显示进度条
+                showProgressBar();
+                startProgressMonitoring();
+                
+                // 准备请求数据
+                const requestData = {
+                    image_paths: imagePaths,
+                    selected_indices: selectedIndices,
+                    method: selectedMethod
+                };
+                
+                console.log('发送到后端的数据:', requestData);
+                
+                // 发送请求到后端
+                const response = await fetch('http://localhost:8001/visualize_features', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(requestData)
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const result = await response.json();
+                
+                if (!result.success) {
+                    throw new Error(result.error || '可视化生成失败');
+                }
+                
+                // 生成3D散点图
+                const traces = [
+                    {
+                        x: result.data.filter(d => !d.selected).map(d => d.x),
+                        y: result.data.filter(d => !d.selected).map(d => d.y),
+                        z: result.data.filter(d => !d.selected).map(d => d.z),
+                        mode: 'markers',
+                        type: 'scatter3d',
+                        name: '未选择图片',
+                        marker: {
+                            size: 5,
+                            color: '#95a5a6',
+                            opacity: 0.6
+                        },
+                        text: result.data.filter(d => !d.selected).map(d => `图片${d.image_index + 1}`),
+                        hovertemplate: '%{text}<br>坐标: (%{x:.2f}, %{y:.2f}, %{z:.2f})<extra></extra>'
+                    }
+                ];
+                
+                // 如果有选中的图片，添加第二个轨迹
+                const selectedData = result.data.filter(d => d.selected);
+                if (selectedData.length > 0) {
+                    traces.push({
+                        x: selectedData.map(d => d.x),
+                        y: selectedData.map(d => d.y),
+                        z: selectedData.map(d => d.z),
+                        mode: 'markers',
+                        type: 'scatter3d',
+                        name: '已选择图片',
+                        marker: {
+                            size: 5,
+                            color: '#28a745',
+                            opacity: 0.6,
+                            line: {
+                                color: '#155724',
+                                width: 1
+                            }
+                        },
+                        text: selectedData.map(d => `图片${d.image_index + 1} (已选择)`),
+                        hovertemplate: '%{text}<br>坐标: (%{x:.2f}, %{y:.2f}, %{z:.2f})<extra></extra>'
+                    });
+                }
+                
+                const layout = {
+                    title: {
+                        text: `图片特征 ${selectedMethod.toUpperCase()} 3D可视化`,
+                        font: { size: 18 }
+                    },
+                    scene: {
+                        xaxis: { title: `${selectedMethod.toUpperCase()} 1` },
+                        yaxis: { title: `${selectedMethod.toUpperCase()} 2` },
+                        zaxis: { title: `${selectedMethod.toUpperCase()} 3` }
+                    },
+                    margin: { l: 0, r: 0, b: 0, t: 40 },
+                    legend: {
+                        x: 0,
+                        y: 1
+                    }
+                };
+                
+                const config = {
+                    responsive: true,
+                    displayModeBar: true,
+                    modeBarButtonsToRemove: ['autoScale2d', 'resetScale2d', 'toggleSpikelines', 'hoverClosestCartesian', 'hoverCompareCartesian']
+                };
+                
+                // 清空容器并绘制图表
+                container.innerHTML = '';
+                Plotly.newPlot(container, traces, layout, config);
+                
+                // 添加右键点击事件监听器
+                addPlotlyContextMenu('visualizationContainer', result.data);
+                
+                // 保存到缓存
+                visualizationCache = {
+                    imagePaths: [...imagePaths], // 复制数组
+                    method: selectedMethod,
+                    data: [...result.data], // 复制数据
+                    isValid: true
+                };
+                console.log('💾 特征数据已缓存，后续选择更新将使用缓存');
+                
+                // 添加统计信息
+                const statsDiv = document.createElement('div');
+                statsDiv.style.cssText = 'margin-top: 15px; text-align: center; color: #6c757d; font-size: 14px;';
+                statsDiv.innerHTML = `
+                    📊 统计信息: 总计 ${result.total_images} 张图片，成功处理 ${result.processed_images} 张，
+                    已选择 ${selectedData.length} 张图片 (绿色点)，未选择 ${result.processed_images - selectedData.length} 张图片 (灰色点)
+                    <br><span style="color: #007acc;">💾 特征数据已缓存</span>
+                `;
+                container.appendChild(statsDiv);
+                
+            } catch (error) {
+                console.error('可视化错误:', error);
+                container.innerHTML = `
+                    <div class="loading-indicator" style="color: #dc3545;">
+                        ❌ 可视化生成失败: ${error.message}
+                        <br><br>
+                        <button onclick="generateVisualization()" style="margin-top: 10px;">🔄 重试</button>
+                    </div>
+                `;
+            }
+        }
+        
+        // 点击模态窗口外部关闭
+        document.addEventListener('click', function(e) {
+            const modal = document.getElementById('visualizationModal');
+            if (e.target === modal) {
+                closeVisualizationModal();
+            }
+            
+            // 点击任何地方都隐藏缩略图（除了缩略图自身）
+            const popup = document.getElementById('thumbnailPopup');
+            if (popup && !popup.contains(e.target)) {
+                hideThumbnail();
+            }
+        });
+        
+        // 监听降维方法变化，提示缓存状态
+        document.addEventListener('change', function(e) {
+            if (e.target.name === 'method') {
+                const selectedMethod = e.target.value;
+                const container = document.getElementById('visualizationContainer');
+                
+                if (visualizationCache.isValid && visualizationCache.method !== selectedMethod) {
+                    // 显示方法改变提示
+                    if (container && !container.querySelector('.loading-indicator')) {
+                        const methodChangeDiv = document.createElement('div');
+                        methodChangeDiv.style.cssText = 'margin: 10px 0; padding: 10px; background-color: #fff3cd; border: 1px solid #ffeaa7; border-radius: 5px; color: #856404; text-align: center; font-size: 14px;';
+                        methodChangeDiv.innerHTML = `
+                            ⚠️ 降维方法已改变为 ${selectedMethod.toUpperCase()}，点击"生成可视化"将重新计算特征
+                        `;
+                        container.appendChild(methodChangeDiv);
+                        
+                        // 3秒后自动隐藏提示
+                        setTimeout(() => {
+                            if (methodChangeDiv.parentNode) {
+                                methodChangeDiv.remove();
+                            }
+                        }, 3000);
+                    }
+                } else if (visualizationCache.isValid && visualizationCache.method === selectedMethod) {
+                    // 移除之前的提示
+                    const existingWarning = container?.querySelector('[style*="background-color: #fff3cd"]');
+                    if (existingWarning) {
+                        existingWarning.remove();
+                    }
+                }
+            }
+        });
+    </script>
+    
+    <!-- 特征可视化模态窗口 -->
+    <div id="visualizationModal" class="visualization-modal">
+        <div class="visualization-content">
+            <div class="visualization-header">
+                <div class="visualization-title">🎨 图片特征可视化</div>
+                <button class="close-btn" onclick="closeVisualizationModal()">×</button>
+            </div>
+            
+            <div class="method-selector">
+                <label><input type="radio" name="method" value="pca" checked> PCA 降维</label>
+                <label><input type="radio" name="method" value="tsne"> t-SNE 降维</label>
+                <button onclick="generateVisualization()" style="margin-left: 20px; padding: 8px 16px;">🚀 生成可视化</button>
+                <button onclick="clearVisualizationCache(); alert('缓存已清空，下次生成将重新计算特征');" style="margin-left: 10px; padding: 8px 16px; background: #6c757d;">🗑️ 清除缓存</button>
+            </div>
+            
+            <div style="margin: 10px 0; padding: 8px; background-color: #e8f5e8; border-radius: 5px; font-size: 13px; color: #2d5a2d;">
+                💡 <strong>使用提示：</strong>
+                <br>• <strong>右键点击</strong>：显示图片缩略图
+                <br>• <strong>Ctrl + 左键点击</strong>：跳转到选择界面对应图片并闪烁提醒
+                <br>• 绿色点表示已选择的图片，灰色点表示未选择的图片
+            </div>
+            
+            <div id="visualizationContainer" class="visualization-container">
+                <div class="loading-indicator">
+                    💡 选择降维方法后点击"生成可视化"按钮开始分析
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 图片缩略图弹窗 -->
+    <div id="thumbnailPopup" class="thumbnail-popup">
+        <button class="thumbnail-close" onclick="hideThumbnail()">×</button>
+        <img id="thumbnailImage" alt="图片缩略图">
+        <div id="thumbnailInfo" class="thumbnail-info"></div>
+    </div>
+</body>
+</html>
