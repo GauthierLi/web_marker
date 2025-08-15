@@ -48,10 +48,6 @@
 ### 方法1：使用启动脚本（推荐）
 
 ```bash
-# 使用完整版启动脚本
-./start_server.sh
-
-# 或者使用简化版启动脚本
 ./quick_start.sh
 ```
 
@@ -223,3 +219,11 @@ pip3 install --force-reinstall fastapi uvicorn
 ## 💫 享受使用体验！
 
 如有问题或建议，欢迎反馈！
+
+## 📈 Progress
+
+<p align="center">
+    <a href="https://star-history.com/#GauthierLi/web_marker&Date">
+    <img src="https://api.star-history.com/svg?repos=GauthierLi/web_marker&type=Date" width="500" alt="Star History Chart">
+  </a>
+</p>
