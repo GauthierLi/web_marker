@@ -1,0 +1,18 @@
+syntax = "proto3";
+
+package sensor;
+
+// Message for temperature and humidity sensor data
+message SensorData {
+  double temperature = 1;    // Temperature in Celsius
+  double humidity = 2;       // Humidity percentage (0-100)
+  uint64 timestamp = 3;      // Unix timestamp in milliseconds
+  string device_id = 4;      // Device identifier
+}
+
+// Response message for sensor readings
+message SensorResponse {
+  bool success = 1;
+  string message = 2;
+  SensorData data = 3;
+}

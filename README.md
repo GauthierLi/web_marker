@@ -1,6 +1,19 @@
-# 🖼️ 图片展示系统
+# 🖼️ Web Marker - Multi-Purpose Visualization System
+
+A feature-rich system with both image visualization capabilities and ESP32 IoT sensor monitoring.
+
+## 📊 Image Display System
 
 一个功能丰富的前后端分离图片展示系统，支持批量选择、路径导出、快捷键操作等功能。
+
+## 🌡️ ESP32 Sensor Monitoring System
+
+Real-time temperature and humidity monitoring with dual server support (WebSocket + HTTP).
+
+- **Dual Server Architecture**: Concurrent WebSocket and HTTP servers
+- **Protocol Buffer Support**: Efficient binary data transmission
+- **Real-time Web Interface**: Live charts and data visualization
+- **RESTful API**: JSON endpoints for sensor data
 
 ## ✨ 功能特性
 
@@ -119,13 +132,23 @@ python3 backend.py
 ## 📁 文件结构
 
 ```
-图片展示系统/
-├── backend.py              # FastAPI后端服务，包含特征可视化API
-├── frontend.html           # 前端页面，包含智能缓存可视化功能
-├── quick_start.sh          # 启动脚本
-├── demo_images.txt         # 演示图片路径文件
-├── requirements.txt        # Python依赖包列表
-└── README.md              # 说明文档
+web_marker/
+├── backend.py                    # FastAPI后端服务，包含特征可视化API
+├── frontend.html                 # 前端页面，包含智能缓存可视化功能
+├── quick_start.sh                # 启动脚本
+├── demo_images.txt               # 演示图片路径文件
+├── requirements.txt              # Python依赖包列表
+├── README.md                     # 主要说明文档
+│
+├── ESP32 IoT Sensor System/
+├── esp32_sensor_server.ino       # ESP32 Arduino主程序 (WebSocket + HTTP)
+├── sensor_data.proto             # Protocol Buffer数据定义
+├── sensor_data.pb.h              # Protocol Buffer头文件
+├── sensor_data.pb.c              # Protocol Buffer源文件
+├── README_ESP32.md               # ESP32详细说明文档
+├── requirements_esp32.txt        # ESP32开发依赖
+├── test_websocket.py             # WebSocket测试客户端
+└── websocket_test_client.html    # Web版WebSocket测试工具
 ```
 
 ## 🔧 技术架构
@@ -204,9 +227,29 @@ pip3 install --force-reinstall fastapi uvicorn
 - 确认图片文件存在且格式支持
 - 检查网络连接（对于在线图片）
 
+## 🚀 Quick Start Guide
+
+### 图片展示系统
+```bash
+./quick_start.sh
+```
+
+### ESP32传感器系统
+1. See [ESP32 README](README_ESP32.md) for detailed setup instructions
+2. Hardware: ESP32 + DHT22 sensor
+3. Flash the Arduino code to ESP32
+4. Access web interface at ESP32's IP address
+
 ## 🆕 更新日志
 
-### v1.0.0
+### v2.0.0 - ESP32 IoT Integration
+- 🌡️ 新增ESP32温湿度传感器监控系统
+- 🔌 双服务器架构：WebSocket + HTTP并发运行
+- 📦 Protocol Buffer数据传输支持
+- 📊 实时Web数据可视化界面
+- 🧪 完整的测试工具套件
+
+### v1.0.0 - 图片展示系统
 - ✨ 初始版本发布
 - 🎯 支持txt文件和文件夹路径输入
 - 🖱️ 实现图片选择和批量操作

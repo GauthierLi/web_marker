@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ESP32 WebSocket Test Client</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            min-height: 100vh;
+            color: white;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+        .input-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input, button {
+            padding: 10px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+        }
+        input {
+            width: 100%;
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+        input::placeholder {
+            color: rgba(255, 255, 255, 0.7);
+        }
+        button {
+            background: #4CAF50;
+            color: white;
+            cursor: pointer;
+            margin-right: 10px;
+            margin-bottom: 10px;
+            transition: background 0.3s;
+        }
+        button:hover {
+            background: #45a049;
+        }
+        button:disabled {
+            background: #666;
+            cursor: not-allowed;
+        }
+        .disconnect {
+            background: #f44336;
+        }
+        .disconnect:hover {
+            background: #da190b;
+        }
+        .status {
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-weight: bold;
+        }
+        .status.connected {
+            background: rgba(76, 175, 80, 0.3);
+            border: 1px solid #4CAF50;
+        }
+        .status.disconnected {
+            background: rgba(244, 67, 54, 0.3);
+            border: 1px solid #f44336;
+        }
+        .status.connecting {
+            background: rgba(255, 193, 7, 0.3);
+            border: 1px solid #FFC107;
+        }
+        .data-display {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .sensor-value {
+            font-size: 24px;
+            margin: 10px 0;
+        }
+        .log {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 10px;
+            padding: 15px;
+            max-height: 300px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+        }
+        .log-entry {
+            margin-bottom: 5px;
+            padding: 5px;
+            border-left: 3px solid #4CAF50;
+            padding-left: 10px;
+        }
+        .log-entry.error {
+            border-left-color: #f44336;
+            color: #ff9999;
+        }
+        .log-entry.info {
+            border-left-color: #2196F3;
+            color: #99ccff;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔌 ESP32 WebSocket Test Client</h1>
+        
+        <div class="input-group">
+            <label for="esp32-ip">ESP32 IP Address:</label>
+            <input type="text" id="esp32-ip" placeholder="192.168.1.100" value="192.168.1.100">
+        </div>
+        
+        <div class="input-group">
+            <button id="connect-btn" onclick="connect()">Connect WebSocket</button>
+            <button id="disconnect-btn" onclick="disconnect()" disabled class="disconnect">Disconnect</button>
+            <button onclick="sendTestMessage()">Send Test Message</button>
+            <button onclick="fetchHttpData()">Fetch HTTP Data</button>
+            <button onclick="clearLog()">Clear Log</button>
+        </div>
+        
+        <div id="status" class="status disconnected">
+            Status: Disconnected
+        </div>
+        
+        <div class="data-display">
+            <h3>🌡️ Latest Sensor Data</h3>
+            <div class="sensor-value">Temperature: <span id="temperature">--</span>°C</div>
+            <div class="sensor-value">Humidity: <span id="humidity">--</span>%</div>
+            <div>Last Update: <span id="last-update">Never</span></div>
+            <div>Device ID: <span id="device-id">--</span></div>
+        </div>
+        
+        <div>
+            <h3>📋 Connection Log</h3>
+            <div id="log" class="log"></div>
+        </div>
+    </div>
+
+    <script>
+        let ws;
+        let reconnectInterval;
+        
+        const statusElement = document.getElementById('status');
+        const connectBtn = document.getElementById('connect-btn');
+        const disconnectBtn = document.getElementById('disconnect-btn');
+        const logElement = document.getElementById('log');
+        const ipInput = document.getElementById('esp32-ip');
+        
+        function addLog(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const logEntry = document.createElement('div');
+            logEntry.className = `log-entry ${type}`;
+            logEntry.innerHTML = `[${timestamp}] ${message}`;
+            logElement.appendChild(logEntry);
+            logElement.scrollTop = logElement.scrollHeight;
+        }
+        
+        function updateStatus(status, className) {
+            statusElement.textContent = `Status: ${status}`;
+            statusElement.className = `status ${className}`;
+        }
+        
+        function connect() {
+            const ip = ipInput.value.trim();
+            if (!ip) {
+                addLog('Please enter ESP32 IP address', 'error');
+                return;
+            }
+            
+            const wsUrl = `ws://${ip}:81`;
+            addLog(`Connecting to ${wsUrl}...`);
+            updateStatus('Connecting...', 'connecting');
+            
+            try {
+                ws = new WebSocket(wsUrl);
+                
+                ws.onopen = function() {
+                    addLog('WebSocket connected successfully!');
+                    updateStatus('Connected', 'connected');
+                    connectBtn.disabled = true;
+                    disconnectBtn.disabled = false;
+                    
+                    // Clear any reconnection attempts
+                    if (reconnectInterval) {
+                        clearInterval(reconnectInterval);
+                        reconnectInterval = null;
+                    }
+                };
+                
+                ws.onmessage = function(event) {
+                    try {
+                        // Try to parse as JSON
+                        const data = JSON.parse(event.data);
+                        addLog(`Received JSON: ${event.data}`);
+                        updateSensorData(data);
+                    } catch (e) {
+                        // Handle non-JSON messages
+                        if (event.data instanceof ArrayBuffer) {
+                            addLog(`Received binary data: ${event.data.byteLength} bytes`);
+                        } else {
+                            addLog(`Received text: ${event.data}`);
+                        }
+                    }
+                };
+                
+                ws.onclose = function(event) {
+                    addLog(`WebSocket closed: Code ${event.code}, Reason: ${event.reason || 'No reason'}`);
+                    updateStatus('Disconnected', 'disconnected');
+                    connectBtn.disabled = false;
+                    disconnectBtn.disabled = true;
+                    
+                    // Auto-reconnect every 5 seconds
+                    if (!reconnectInterval) {
+                        addLog('Will attempt to reconnect every 5 seconds...');
+                        reconnectInterval = setInterval(() => {
+                            if (ws.readyState === WebSocket.CLOSED) {
+                                addLog('Attempting to reconnect...');
+                                connect();
+                            }
+                        }, 5000);
+                    }
+                };
+                
+                ws.onerror = function(error) {
+                    addLog(`WebSocket error: ${error}`, 'error');
+                    updateStatus('Connection Error', 'disconnected');
+                };
+                
+            } catch (error) {
+                addLog(`Failed to create WebSocket: ${error}`, 'error');
+                updateStatus('Connection Failed', 'disconnected');
+            }
+        }
+        
+        function disconnect() {
+            if (ws) {
+                ws.close();
+            }
+            if (reconnectInterval) {
+                clearInterval(reconnectInterval);
+                reconnectInterval = null;
+            }
+            addLog('Disconnected by user');
+        }
+        
+        function sendTestMessage() {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                const message = 'Hello from test client!';
+                ws.send(message);
+                addLog(`Sent message: ${message}`);
+            } else {
+                addLog('WebSocket not connected', 'error');
+            }
+        }
+        
+        function fetchHttpData() {
+            const ip = ipInput.value.trim();
+            if (!ip) {
+                addLog('Please enter ESP32 IP address', 'error');
+                return;
+            }
+            
+            const url = `http://${ip}/sensor`;
+            addLog(`Fetching HTTP data from ${url}...`);
+            
+            fetch(url)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    addLog(`HTTP response: ${JSON.stringify(data)}`);
+                    updateSensorData(data);
+                })
+                .catch(error => {
+                    addLog(`HTTP fetch error: ${error}`, 'error');
+                });
+        }
+        
+        function updateSensorData(data) {
+            document.getElementById('temperature').textContent = data.temperature?.toFixed(1) || '--';
+            document.getElementById('humidity').textContent = data.humidity?.toFixed(1) || '--';
+            document.getElementById('last-update').textContent = new Date().toLocaleTimeString();
+            document.getElementById('device-id').textContent = data.device_id || '--';
+        }
+        
+        function clearLog() {
+            logElement.innerHTML = '';
+            addLog('Log cleared');
+        }
+        
+        // Initialize
+        addLog('WebSocket test client initialized');
+        addLog('Enter your ESP32 IP address and click Connect');
+        
+        // Auto-connect on Enter key in IP input
+        ipInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                connect();
+            }
+        });
+    </script>
+</body>
+</html>
